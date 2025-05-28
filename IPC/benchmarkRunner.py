@@ -28,7 +28,7 @@ if __name__ == "__main__":
     num_workers = int(sys.argv[1])
     num_cmds = int(sys.argv[2])
 
-    from process_utils import kill_python_processes
+    from IPC.utils.process_utils import kill_python_processes
     if "--clean" in sys.argv:
         kill_python_processes(filter_substring="python")
 

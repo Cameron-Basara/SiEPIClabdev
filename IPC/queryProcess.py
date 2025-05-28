@@ -1,7 +1,9 @@
 from time import sleep
 # from sharedIPC import query_c, heartbeat_q
 import threading
+from multiprocessing.connection import PipeConnection
 # from concurrent.futures import ThreadPoolExecutor
+from utils.benchmark_utils import get_memory_size
 from random import randint
 import heapq
 
@@ -13,6 +15,7 @@ class QueryTask:
         self.callback = callback
         self.pause_event = threading.Event()
         self.kill_event = threading.Event()
+        
 
     def __lt__(self, other):
         return self.priority < other.priority  # Min-heap
@@ -56,6 +59,16 @@ class QueryProcess:
         self.workers = []
         self.shutdown_flag = shutdown_flag
 
+        # Same as main
+        if isinstance(query_c, PipeConnection):
+            self._send = query_c.send
+            self._recv = lambda timeout=1: query_c.recv() if query_c.poll(timeout) else None
+        elif hasattr(query_c, "put") and hasattr(query_c, "get"):
+            self._send = query_c.put
+            self._recv = lambda timeout=1: query_c.get(timeout=timeout)
+        else:
+            raise TypeError(f"Unsupported query_c type: {type(query_c)}")
+
         for _ in range(self.max_workers):
             t = threading.Thread(target=self.worker_loop, daemon=True)
             t.start()
@@ -76,7 +89,7 @@ class QueryProcess:
         sleep(result["value"] / 100)
 
         with self.sending_lock:
-            self.query_c.send(result)
+            self._send(result)
     
     def heartbeat_loop(self):
         while not self.shutdown_flag.is_set():
@@ -111,6 +124,19 @@ class QueryProcess:
                 task.run()
             else:
                 sleep(0.1)
+    
+    def recv_data(self):
+        try:
+            if self.query_c.poll(timeout=1):
+                return self._recv()
+        except:
+            return None
+
+    def test_recv_loop(self):
+        while not self.shutdown_flag.is_set():
+            data = self.recv_data()
+            if data is not None:
+                print(f"[Query] Received {type(data).__name__}, size: {get_memory_size(data)} bytes")
 
     def start(self):
         print("[QueryProcess]: Starting")

@@ -1,12 +1,12 @@
 from multiprocessing import Process, Manager
 from mainProcess import MainProcess
 from queryProcess import QueryProcess
-from sharedIPC import create_ICP
+from sharedIPC import create_IPC
 import os
 from time import sleep
 
 # helper functions
-from process_utils import kill_python_processes
+from IPC.utils.process_utils import kill_python_processes
 import sys
 
 def run_query_process(query_c, heartbeat_q, shutdown_flag):
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     if "--clean" in sys.argv:
         kill_python_processes(filter_substring="python")
 
-    main_c, query_c, heartbeat_q = create_ICP()
+    main_c, query_c, heartbeat_q = create_IPC()
 
     # Run with a manager allow for toggling of shutdown events
     with Manager() as manager:
